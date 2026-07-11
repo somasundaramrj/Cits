@@ -1,0 +1,36 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  @apply bg-base-950 text-slate-100 antialiased;
+  background-image:
+    radial-gradient(circle at 15% 20%, rgba(59,130,246,0.08), transparent 40%),
+    radial-gradient(circle at 85% 80%, rgba(139,92,246,0.08), transparent 40%);
+  background-attachment: fixed;
+}
+
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a3550; border-radius: 8px; }
+::-webkit-scrollbar-thumb:hover { background: #384467; }
+
+.glass {
+  @apply bg-white/5 backdrop-blur-md border border-white/10 shadow-glass;
+}
+
+.glass-card {
+  @apply glass rounded-2xl p-4;
+}
+
+.skeleton {
+  @apply animate-pulse bg-white/5 rounded-lg;
+}
+
+.status-dot {
+  @apply inline-block w-2 h-2 rounded-full mr-1.5;
+}

@@ -8,10 +8,8 @@ import AnalyticsCharts from '../components/AnalyticsCharts'
 import { useGeolocation } from '../hooks/useGeolocation'
 import { useWebSocket } from '../hooks/useWebSocket'
 import { predictCollision, RISK } from '../utils/collisionPrediction'
-import { createSimulatedFleet, stepSimulatedFleet } from '../utils/simulator'
 import { useAuth } from '../context/AuthContext'
 
-const APP_MODE = import.meta.env.VITE_APP_MODE || 'development'
 const UPDATE_INTERVAL_MS = 100 // spec: send position every 100ms
 
 export default function Dashboard() {
@@ -21,21 +19,17 @@ export default function Dashboard() {
   const [clock, setClock] = useState(new Date())
   const [speedHistory, setSpeedHistory] = useState([])
   const [packetHistory, setPacketHistory] = useState([])
-  const [simFleet, setSimFleet] = useState([])
 
   const accessToken = localStorage.getItem('citsx_access_token')
   const { position: geoPosition, error: geoError } = useGeolocation({ enabled: true })
   const { status: wsStatus, nearbyVehicles, events, rtt, send } = useWebSocket(accessToken)
 
-  // "self" is this laptop's own vehicle: real GPS if available, else a gentle
-  // simulated drift around a fixed point so the app is demoable indoors.
-  const fallbackSelf = useRef({ latitude: 13.0827, longitude: 80.2707, heading: 90, speed: 30 })
+  // Only use coordinates supplied by the device's live geolocation.
   const self = useMemo(() => {
-    const base = geoPosition || fallbackSelf.current
     return {
       vehicleId: user?.vehicle_id,
       vehicleType: user?.vehicle_type || 'Car',
-      ...base,
+      ...geoPosition,
       acceleration: 0,
       brake: false,
       timestamp: Date.now() / 1000,
@@ -44,8 +38,9 @@ export default function Dashboard() {
 
   // Send position updates every 100ms over the persistent WebSocket.
   useEffect(() => {
+    if (self.latitude == null || self.longitude == null) return
+
     const interval = setInterval(() => {
-      if (!self.latitude) return
       send({
         type: 'update',
         vehicleId: self.vehicleId,
@@ -62,19 +57,7 @@ export default function Dashboard() {
     return () => clearInterval(interval)
   }, [self, send])
 
-  // Development Mode: run a locally-simulated fleet of 20-50 vehicles so the
-  // dashboard is fully demoable on one laptop without other real vehicles.
-  useEffect(() => {
-    if (APP_MODE !== 'development') return
-    setSimFleet(createSimulatedFleet({ lat: self.latitude, lng: self.longitude }, 30))
-    const interval = setInterval(() => {
-      setSimFleet((f) => stepSimulatedFleet(f, UPDATE_INTERVAL_MS / 1000))
-    }, UPDATE_INTERVAL_MS)
-    return () => clearInterval(interval)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  const effectiveNearby = APP_MODE === 'development' ? [...nearbyVehicles, ...simFleet] : nearbyVehicles
+  const effectiveNearby = nearbyVehicles
 
   // Client-side collision prediction against every nearby vehicle.
   const predictions = useMemo(() => {
@@ -145,8 +128,8 @@ export default function Dashboard() {
           <div>
             <h1 className="font-bold text-lg">Smart City Traffic Command Center</h1>
             <p className="text-xs text-slate-400">
-              Mode: <span className="text-accent-cyan font-mono">{APP_MODE}</span>
-              {geoError && <span className="text-risk-warning ml-2">GPS unavailable, using simulated position</span>}
+              Data: <span className="text-accent-cyan font-mono">Live</span>
+              {geoError && <span className="text-risk-warning ml-2">GPS unavailable, your position is hidden</span>}
             </p>
           </div>
           <div className="font-mono text-sm text-slate-300">{clock.toLocaleTimeString()}</div>
@@ -169,21 +152,12 @@ export default function Dashboard() {
         {view === 'map' && (
           <div className="flex-1 flex gap-2 min-h-0">
             <div className="flex-1 relative rounded-2xl overflow-hidden">
-              {effectiveNearby.length === 0 && APP_MODE === 'production' ? (
-                <div className="w-full h-full flex items-center justify-center glass-card">
-                  <div className="text-center">
-                    <p className="font-semibold text-slate-300">No Active Vehicles</p>
-                    <p className="text-sm text-slate-500">Waiting for Vehicle Connections</p>
-                  </div>
-                </div>
-              ) : (
-                <MapView
-                  self={self}
-                  nearby={effectiveNearby}
-                  predictions={predictions}
-                  onSelectVehicle={setSelectedVehicle}
-                />
-              )}
+              <MapView
+                self={self}
+                nearby={effectiveNearby}
+                predictions={predictions}
+                onSelectVehicle={setSelectedVehicle}
+              />
               <VehiclePanel
                 vehicle={selectedVehicle}
                 prediction={selectedVehicle ? predictions[selectedVehicle.vehicleId] : null}

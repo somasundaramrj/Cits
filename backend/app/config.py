@@ -3,7 +3,7 @@ from typing import List
 
 
 class Settings(BaseSettings):
-    MONGO_URI: str = "mongodb+srv://somu:Somu8499@cluster0.61aqpsp.mongodb.net/citsx"
+    MONGO_URI: str = "mongodb://localhost:27017"
     MONGO_DB_NAME: str = "citsx"
 
     JWT_SECRET_KEY: str = "insecure-dev-secret-change-me"

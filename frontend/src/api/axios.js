@@ -34,7 +34,14 @@ api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config
-    if (error.response?.status === 401 && !original._retry) {
+    const requestPath = original?.url?.split('?')[0]
+    const isAuthRequest = [
+      '/api/auth/login',
+      '/api/auth/register',
+      '/api/auth/refresh',
+    ].includes(requestPath)
+
+    if (error.response?.status === 401 && original && !original._retry && !isAuthRequest) {
       original._retry = true
       const { refresh } = getTokens()
       if (!refresh) {

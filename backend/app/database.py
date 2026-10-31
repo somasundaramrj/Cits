@@ -40,7 +40,7 @@ async def connect_to_mongo():
         await client.admin.command("ping")
         db = client[settings.MONGO_DB_NAME]
         USING_MEMORY_FALLBACK = False
-        logger.info("Connected to MongoDB at %s", settings.MONGO_URI)
+        logger.info("Connected to MongoDB")
 
         await db.users.create_index("email", unique=True)
         await db.users.create_index("vehicleId", unique=True)
